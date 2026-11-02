@@ -1485,6 +1485,38 @@ input[type=range]{accent-color:#e92d2b!important}
 .gwlog th{font-size:8px!important;letter-spacing:0!important}
 @media(max-width:720px){.sldr-row .sldr-box{flex:1 1 0;min-width:0}.sldr-row .slider{width:70px!important}.sldr-row .flbl{font-size:8.5px}
  .fhub .cols2{grid-template-columns:1fr 1fr!important;gap:6px}.fhub .fxtbl td,.fhub .fxtbl th{padding:4px 2px!important;font-size:9.5px}.fhub .fx-wrap{overflow-x:auto}.fhub .fx-opp{font-size:8px;padding:1px 2px}}
+
+/* fantasy two-up tables + stat leader buttons fit the screen on mobile */
+@media(max-width:720px){
+ .fhub .fxtbl.fit4{table-layout:fixed;width:100%}
+ .fhub .fxtbl.fit4 th,.fhub .fxtbl.fit4 td{font-size:8.5px!important;padding:4px 1px!important;letter-spacing:0}
+ .fhub .fxtbl.fit4 th:nth-child(1),.fhub .fxtbl.fit4 td:nth-child(1){width:14px!important}
+ .fhub .fxtbl.fit4 th:nth-child(n+3),.fhub .fxtbl.fit4 td:nth-child(n+3){width:38px!important}
+ .fhub .fxtbl.fit4 td:nth-child(2){overflow:hidden;white-space:nowrap}
+ .fhub .fxtbl.fit4 td:nth-child(2)>span{max-width:100%;gap:3px!important}
+ .fhub .fxtbl.fit4 td:nth-child(2) span{min-width:0}
+ .fhub .fxtbl.fit4 .fx-nmlink{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+ .fhub .fxtbl.fit4 .badge.xs{width:12px!important;height:12px!important;flex:0 0 12px}
+ .fhub .fxtbl.fit4 svg,.fhub .fxtbl.fit4 .avail-ic{width:10px!important;height:10px!important;flex:0 0 10px}
+ .fhub .ldr-btns{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px!important}
+ .fhub .ldr-btns .subtab{font-size:7.5px!important;padding:5px 1px!important;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:6px}
+ .fhub .ldr-note{font-size:8px!important}
+ .fhub .stit{font-size:10px}
+}
+@media(max-width:720px){.fhub .fxtbl.fit4 span[title]{flex:0 0 11px;width:11px!important;height:11px!important;font-size:7px!important}}
+@media(max-width:720px){
+ .fhub .fxtbl.fixt{table-layout:fixed;width:100%}
+ .fhub .fxtbl.fixt th,.fhub .fxtbl.fixt td{font-size:8.5px!important;padding:4px 1px!important;letter-spacing:0}
+ .fhub .fxtbl.fixt th:nth-child(1),.fhub .fxtbl.fixt td:nth-child(1){width:14px}
+ .fhub .fxtbl.fixt th:nth-child(2),.fhub .fxtbl.fixt td:nth-child(2){width:30px}
+ .fhub .fxtbl.fixt thead th{font-size:7.5px!important}
+ .fhub .fxtbl.fixt th:nth-child(3),.fhub .fxtbl.fixt td:nth-child(3){width:14px}
+ .fhub .fxtbl.fixt td:nth-child(3) b{font-size:10px!important}
+ .fhub .fxtbl.fixt .fixt-ab{display:none}
+ .fhub .fxtbl.fixt .badge.xs{width:14px!important;height:14px!important}
+ .fhub .fxtbl.fixt .fx-opp{font-size:6.5px!important;padding:1px 1px!important}
+ .fhub .fxtbl.fixt td:nth-child(4)>span{gap:1px!important}
+}
 </style></head>
 <body><div id="root"></div>
 <script>/**
@@ -3510,7 +3542,7 @@ function fnameL(p, onOpen) {
     <span style=${{ display: "inline-flex", alignItems: "center", gap: 5 }}><b className="fx-nmlink" onClick=${(e) => { e.stopPropagation(); onOpen && onOpen(p); }}>${rNm(p.n)}</b><${AvailIcon} inj=${p.inj} /></span></span>`;
 }
 function FxTable({ cols, rows, onOpen }) {
-  return html`<div className="fx-wrap fx10"><table className="fxtbl center"><thead><tr>${cols.map((c, i) => html`<th key=${i} className="fx-th" style=${{ textAlign: c.a || "center" }}>${c.l}</th>`)}</tr></thead>
+  return html`<div className="fx-wrap fx10"><table className="fxtbl center fit4"><thead><tr>${cols.map((c, i) => html`<th key=${i} className="fx-th" style=${{ textAlign: c.a || "center" }}>${c.l}</th>`)}</tr></thead>
     <tbody>${rows.length ? rows.map((r, i) => html`<tr key=${i} className="fx-row" style=${r.tm ? rowBg(r.tm) : null} onClick=${() => onOpen && r.pid && onOpen(r)}>${cols.map((c, j) => html`<td key=${j} style=${{ textAlign: c.a || "center" }}>${c.r(r, i)}</td>`)}</tr>`)
       : html`<tr><td colspan=${cols.length} className="sub" style=${{ padding: 10 }}>—</td></tr>`}</tbody></table></div>`;
 }
@@ -3547,8 +3579,8 @@ function FixturesTab() {
   const all = teams.map((t) => { const g = roundGames(t, FNEXT); return { t, g: g.length, b2b: g.filter((x) => x[5]).length, h: g.filter((x) => x[2] === "H").length }; });
   const most = all.slice().sort((a, b) => b.g - a.g || a.b2b - b.b2b || b.h - a.h);
   const few = all.slice().sort((a, b) => a.g - b.g || b.b2b - a.b2b);
-  const tbl = (list) => html`<div className="fx-wrap fx10"><table className="fxtbl center"><thead><tr><th className="fx-th">#</th><th className="fx-th" style=${{ textAlign: "left" }}>Team</th><th className="fx-th">G</th><th className="fx-th">Opponents</th></tr></thead>
-    <tbody>${list.map((x, i) => html`<tr key=${x.t} style=${rowBg(x.t)}><td className="fx-rk">${i + 1}</td><td style=${{ textAlign: "left" }}><span style=${{ display: "inline-flex", alignItems: "center", gap: 6 }}><${Badge} s=${x.t} cls="xs" /><b>${abbr(x.t)}</b></span></td>
+  const tbl = (list) => html`<div className="fx-wrap fx10"><table className="fxtbl center fixt"><thead><tr><th className="fx-th">#</th><th className="fx-th" style=${{ textAlign: "left" }}>Team</th><th className="fx-th">G</th><th className="fx-th">Opponents</th></tr></thead>
+    <tbody>${list.map((x, i) => html`<tr key=${x.t} style=${rowBg(x.t)}><td className="fx-rk">${i + 1}</td><td style=${{ textAlign: "left" }}><span style=${{ display: "inline-flex", alignItems: "center", gap: 6 }}><${Badge} s=${x.t} cls="xs" /><b className="fixt-ab">${abbr(x.t)}</b></span></td>
       <td><b style=${{ color: gamesClr(x.g), fontSize: 13 }}>${x.g}</b></td><td style=${{ whiteSpace: "nowrap" }}>${oppChips(x.t, FNEXT)}</td></tr>`)}</tbody></table></div>`;
   const wks = ROUNDS.filter((x) => x[0] >= FNEXT).map((x) => x[0]);
   const grid = teams.map((t) => { const c = wks.map((w) => roundGames(t, w).length); return { t, c, tot: c.reduce((s, v) => s + v, 0) }; });
@@ -3617,9 +3649,8 @@ function TeamsTab({ sc, onOpen }) {
   const r = String(FNEXT);
   const T = (FT.teams || {})[r] || {};
   const sel = "";
-  if (sc === "sc") return html`<div>${sel}<div className="cols2">
+  if (sc === "sc") return html`<div>${sel}<div style=${{ maxWidth: 640, margin: "0 auto" }}>
     <${TeamCard} title="Best Team" kind="sc" note="Highest projected gameweek total within the $164.96M cap · 2 PG, 2 SG, 1 C, 2 SF, 2 PF, 1 Flex + bench PG/SG/C/SF/PF" squad=${T.scBest || []} sc=${sc} onOpen=${onOpen} r=${+r} />
-    ${FT.teams.scOwned ? html`<${TeamCard} title="Most Owned Team" kind="own" note="Highest total ownership within the cap · C/VC = most captained / vice-captained" squad=${FT.teams.scOwned} sc=${sc} onOpen=${onOpen} r=${+r} />` : html`<div className="sub" style=${{ padding: 16, textAlign: "center" }}>No SuperCoach ownership loaded yet.</div>`}
   </div></div>`;
   return html`<div>${sel}<div className="cols2">
     <${TeamCard} title="Best Team" kind="es" note="Highest projected gameweek total · PG, SG, SF, PF, C, G, F, 3 UTIL + 3 bench" squad=${T.esBest || []} sc=${sc} onOpen=${onOpen} r=${+r} />
@@ -3630,7 +3661,7 @@ function TeamsTab({ sc, onOpen }) {
 // ---------- ESPN stat leaders ----------
 // per-game averages (percentages from totals). Qualifying: FG% needs 5+ FGA and 3PT% needs 2+ 3PA per team game in that period;
 // other stats need half the team's games in the gameweek and 70%+ of its games this season.
-const LSTATS = [["fgp", "FG %"], ["tpp", "3PT %"], ["pts", "Points"], ["reb", "Rebounds"], ["ast", "Assists"], ["stl", "Steals"], ["blk", "Blocks"], ["tov", "Turnovers"]];
+const LSTATS = [["fgp", "FG %"], ["tpp", "3PT %"], ["pts", "Points"], ["reb", "Reb", "Rebounds"], ["ast", "Assists"], ["stl", "Steals"], ["blk", "Blocks"], ["tov", "T/O", "Turnovers"]];
 const teamGames = (tm, per) => (SCHED[tm] || []).filter((x) => x[3] != null && (per === "GW" ? x[3] === FPREV : x[3] <= FPREV)).length;
 function leaderVal(p, k, per) {
   const rows = fPeriod(p.gl, per === "GW" ? "GW" : String(FSEASON)); const tg = teamGames(p.tm, per);
@@ -3649,16 +3680,16 @@ function LeaderTable({ dflt, onOpen }) {
     .sort((a, b) => { const x = sortp === "S" ? a.s : a.g, y = sortp === "S" ? b.s : b.g; return (asc ? 1 : -1) * (x - y); }).slice(0, 15), [k, sortp, asc]);
   const f = (v) => (v == null ? "–" : pctK ? v.toFixed(1) + "%" : v.toFixed(1));
   const hdr = (id, l) => html`<th className=${"fx-th" + (sortp === id ? " on" : "")} style=${{ cursor: "pointer" }} onClick=${() => { if (sortp === id) setAsc((a) => !a); else { setSortp(id); setAsc(false); } }}>${l}${sortp === id ? (asc ? " ▲" : " ▼") : ""}</th>`;
-  const lbl = (LSTATS.find((x) => x[0] === k) || [0, k])[1];
+  const lx = LSTATS.find((x) => x[0] === k) || [0, k]; const lbl = lx[2] || lx[1];
   return html`<div className="tcard">
-    <div style=${{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginBottom: 8 }}>${LSTATS.map(([id, l]) => html`<button key=${id} className=${"subtab" + (k === id ? " on" : "")} style=${{ fontSize: 10, padding: "3px 8px" }} onClick=${() => setK(id)}>${l}</button>`)}</div>
+    <div className="ldr-btns" style=${{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginBottom: 8 }}>${LSTATS.map(([id, l]) => html`<button key=${id} className=${"subtab" + (k === id ? " on" : "")} style=${{ fontSize: 10, padding: "3px 8px" }} onClick=${() => setK(id)}>${l}</button>`)}</div>
     <div className="stit" style=${{ marginTop: 0 }}>${lbl} Leaders</div>
-    <div className="fx-wrap fx10"><table className="fxtbl center"><thead><tr><th className="fx-th" style=${{ width: 22 }}>#</th><th className="fx-th" style=${{ textAlign: "left" }}>Name</th>${hdr("S", sLbl(FSEASON))}${hdr("GW", FPREVL)}</tr></thead>
+    <div className="fx-wrap fx10"><table className="fxtbl center fit4"><thead><tr><th className="fx-th" style=${{ width: 22 }}>#</th><th className="fx-th" style=${{ textAlign: "left" }}>Name</th>${hdr("S", sLbl(FSEASON))}${hdr("GW", FPREVL)}</tr></thead>
     <tbody>${rows.length ? rows.map((r, i) => html`<tr key=${r.p.pid} className="fx-row" style=${rowBg(r.p.tm)} onClick=${() => onOpen(r.p)}>
       <td>${i + 1}</td><td style=${{ textAlign: "left" }}>${fnameL(r.p, onOpen)}</td>
       <td style=${{ fontWeight: sortp === "S" ? 800 : 400 }}>${f(r.s)}</td><td style=${{ fontWeight: sortp === "GW" ? 800 : 400 }}>${f(r.g)}</td></tr>`)
       : html`<tr><td colspan="4" className="sub" style=${{ padding: 10 }}>—</td></tr>`}</tbody></table></div>
-    <div className="sub" style=${{ fontSize: 9.5, textAlign: "center", marginTop: 4 }}>${k === "fgp" ? "Min 5 FG attempts per team game in that period" : k === "tpp" ? "Min 2 3PT attempts per team game in that period" : "Per game · min half the team's " + FPREVL + " games and 70% of its season games"}</div>
+    <div className="sub ldr-note" style=${{ fontSize: 9.5, textAlign: "center", marginTop: 4 }}>${k === "fgp" ? "Min 5 FG attempts per team game in that period" : k === "tpp" ? "Min 2 3PT attempts per team game in that period" : "Per game · min half the team's " + FPREVL + " games and 70% of its season games"}</div>
   </div>`;
 }
 function LeadersTab({ onOpen }) {
@@ -3915,7 +3946,7 @@ function FantasyHub({ sc, setSc, fp, setFp }) {
       <div className="fhub-sc"><${Seg} cls="fitw" items=${[["sc", "SuperCoach"], ["es", "ESPN"]]} value=${sc} onChange=${setSc} /></div>
       <button className="collapse-btn" onClick=${() => setTblOpen((o) => !o)}>${tblOpen ? "▾ Hide tables" : "▸ Show tables"}</button>
     </div>
-    <div className="subtabs" style=${{ flexWrap: "wrap", margin: "0 0 10px", justifyContent: "center" }}>${FSUBS.map(([k, l]) => (k === "teams" && sc === "es" ? ["teams", "Stat Leaders"] : [k, l])).map(([k, l]) => html`<button key=${k} className=${"subtab" + (sub === k ? " on" : "")} onClick=${() => setSub(k)}>${l}</button>`)}</div>
+    <div className="subtabs" style=${{ flexWrap: "wrap", margin: "0 0 10px", justifyContent: "center" }}>${FSUBS.map(([k, l]) => (k === "teams" && sc === "es" ? ["teams", html`<span className="nm-dsk">Stat Leaders</span><span className="nm-mob">Leaders</span>`] : [k, l])).map(([k, l]) => html`<button key=${k} className=${"subtab" + (sub === k ? " on" : "")} onClick=${() => setSub(k)}>${l}</button>`)}</div>
     ${tblOpen ? html`<div>${sub === "trades" ? html`<${TradesTab} sc=${sc} onOpen=${open} />` : sub === "fixtures" ? html`<${FixturesTab} />` : sub === "injury" ? html`<${InjuryTab} sc=${sc} onOpen=${open} />` : sub === "picks" ? html`<${PicksTab} sc=${sc} onOpen=${open} />` : sc === "es" ? html`<${LeadersTab} onOpen=${open} />` : html`<${TeamsTab} sc=${sc} onOpen=${open} />`}</div>` : ""}
     <div style=${{ height: 1, background: "var(--brd)", margin: "22px 0 14px" }}></div>
     <${Comparison} cmp=${cmp} sc=${sc} clear=${toggleCmp} onOpen=${open} period=${period} />
