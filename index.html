@@ -3460,8 +3460,14 @@ const POS5 = ["PG", "SG", "SF", "PF", "C"];
 const FPOS = [["ALL", "All"], ["PG", "PG"], ["SG", "SG"], ["SF", "SF"], ["PF", "PF"], ["C", "C"]];
 const POSCLR = { PG: "#6ea8ff", SG: "#47d1c8", SF: "#f3a626", PF: "#ff8a5c", C: "#c38cff", G: "#6ea8ff", F: "#f3a626", UTIL: "#9fb0c3", FLEX: "#9fb0c3", BE: "#5a6372" };
 const fCurHas = FPL.some((p) => (p.gl || []).some((r) => r[FG.s] === FSEASON));
-const FPERIODS = [["all", "All"], [String(FSEASON), sLbl(FSEASON)], [String(FSEASON - 1), sLbl(FSEASON - 1)], ["L10", "L10"], ["L5", "L5"], ["L3", "L3"]];
-const FDEF_PER = String(fCurHas ? FSEASON : FSEASON - 1);
+// last completed gameweek (the one before the next to be played)
+const FPREV = Math.max(1, FNEXT - 1);
+const FPREVL = "GW" + FPREV;
+// round of a game in a player's log, found through the opponent's schedule (team moves don't matter)
+const _rdCache = {};
+const rdOfRow = (r) => { const k = r[FG.opp] + "|" + r[FG.d]; if (k in _rdCache) return _rdCache[k]; const x = (SCHED[r[FG.opp]] || []).find((y) => y[4] === r[FG.d]); return (_rdCache[k] = x ? x[3] : null); };
+const FPERIODS = [[String(FSEASON), sLbl(FSEASON)], ["L10", "Last 10"], ["GW", FPREVL]];
+const FDEF_PER = String(FSEASON);
 const GWL = "GW" + FNEXT;
 const money = (v) => (v == null ? "–" : "$" + (v / 1e6).toFixed(2) + "M");
 const nn = (v, d) => (v == null || !isFinite(v) ? "–" : d ? (+v).toFixed(d) : "" + Math.round(v));
@@ -3477,6 +3483,7 @@ function fPeriod(gl, per) {
   if (!gl || !gl.length) return [];
   if (per === "all") return gl;
   if (per === "L10" || per === "L5" || per === "L3") return gl.slice(-{ L10: 10, L5: 5, L3: 3 }[per]);
+  if (per === "GW") return gl.filter((r) => r[FG.s] === FSEASON && rdOfRow(r) === FPREV);
   return gl.filter((r) => String(r[FG.s]) === per);
 }
 const avgOf = (rows, sc) => (rows.length ? rows.reduce((s, r) => s + fpts(r, sc), 0) / rows.length : null);
@@ -3620,6 +3627,44 @@ function TeamsTab({ sc, onOpen }) {
   </div></div>`;
 }
 
+// ---------- ESPN stat leaders ----------
+// per-game averages (percentages from totals). Qualifying: FG% needs 5+ FGA and 3PT% needs 2+ 3PA per team game in that period;
+// other stats need half the team's games in the gameweek and 70%+ of its games this season.
+const LSTATS = [["fgp", "FG %"], ["tpp", "3PT %"], ["pts", "Points"], ["reb", "Rebounds"], ["ast", "Assists"], ["stl", "Steals"], ["blk", "Blocks"], ["tov", "Turnovers"]];
+const teamGames = (tm, per) => (SCHED[tm] || []).filter((x) => x[3] != null && (per === "GW" ? x[3] === FPREV : x[3] <= FPREV)).length;
+function leaderVal(p, k, per) {
+  const rows = fPeriod(p.gl, per === "GW" ? "GW" : String(FSEASON)); const tg = teamGames(p.tm, per);
+  if (!rows.length || !tg) return null;
+  if (k === "fgp" || k === "tpp") { const [m, a, need] = k === "fgp" ? ["fgm", "fga", 5] : ["tpm", "tpa", 2]; const at = sumK(rows, a); return at >= need * tg ? (100 * sumK(rows, m)) / at : null; }
+  if (per === "GW" ? rows.length * 2 < tg : rows.length < 0.7 * tg) return null;
+  return favgK(rows, k);
+}
+function LeaderTable({ dflt, onOpen }) {
+  const [k, setK] = useState(dflt);
+  const [sortp, setSortp] = useState("S");
+  const [asc, setAsc] = useState(false);
+  const pctK = k === "fgp" || k === "tpp";
+  const rows = useMemo(() => FPL.map((p) => ({ p, s: leaderVal(p, k, "S"), g: leaderVal(p, k, "GW") }))
+    .filter((r) => (sortp === "S" ? r.s : r.g) != null)
+    .sort((a, b) => { const x = sortp === "S" ? a.s : a.g, y = sortp === "S" ? b.s : b.g; return (asc ? 1 : -1) * (x - y); }).slice(0, 15), [k, sortp, asc]);
+  const f = (v) => (v == null ? "–" : pctK ? v.toFixed(1) + "%" : v.toFixed(1));
+  const hdr = (id, l) => html`<th className=${"fx-th" + (sortp === id ? " on" : "")} style=${{ cursor: "pointer" }} onClick=${() => { if (sortp === id) setAsc((a) => !a); else { setSortp(id); setAsc(false); } }}>${l}${sortp === id ? (asc ? " ▲" : " ▼") : ""}</th>`;
+  const lbl = (LSTATS.find((x) => x[0] === k) || [0, k])[1];
+  return html`<div className="tcard">
+    <div style=${{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginBottom: 8 }}>${LSTATS.map(([id, l]) => html`<button key=${id} className=${"subtab" + (k === id ? " on" : "")} style=${{ fontSize: 10, padding: "3px 8px" }} onClick=${() => setK(id)}>${l}</button>`)}</div>
+    <div className="stit" style=${{ marginTop: 0 }}>${lbl} Leaders</div>
+    <div className="fx-wrap fx10"><table className="fxtbl center"><thead><tr><th className="fx-th" style=${{ width: 22 }}>#</th><th className="fx-th" style=${{ textAlign: "left" }}>Name</th>${hdr("S", sLbl(FSEASON))}${hdr("GW", FPREVL)}</tr></thead>
+    <tbody>${rows.length ? rows.map((r, i) => html`<tr key=${r.p.pid} className="fx-row" style=${rowBg(r.p.tm)} onClick=${() => onOpen(r.p)}>
+      <td>${i + 1}</td><td style=${{ textAlign: "left" }}>${fnameL(r.p, onOpen)}</td>
+      <td style=${{ fontWeight: sortp === "S" ? 800 : 400 }}>${f(r.s)}</td><td style=${{ fontWeight: sortp === "GW" ? 800 : 400 }}>${f(r.g)}</td></tr>`)
+      : html`<tr><td colspan="4" className="sub" style=${{ padding: 10 }}>—</td></tr>`}</tbody></table></div>
+    <div className="sub" style=${{ fontSize: 9.5, textAlign: "center", marginTop: 4 }}>${k === "fgp" ? "Min 5 FG attempts per team game in that period" : k === "tpp" ? "Min 2 3PT attempts per team game in that period" : "Per game · min half the team's " + FPREVL + " games and 70% of its season games"}</div>
+  </div>`;
+}
+function LeadersTab({ onOpen }) {
+  return html`<div className="cols2"><${LeaderTable} dflt="fgp" onOpen=${onOpen} /><${LeaderTable} dflt="pts" onOpen=${onOpen} /></div>`;
+}
+
 // ---------- explorer + comparison ----------
 function thrOf(sc) { return sc === "sc" ? [30, 40, 50] : [40, 50, 60]; }
 function exCols(sc) {
@@ -3631,7 +3676,11 @@ function exCols(sc) {
     ? [{ k: "price", l: "Price", v: (p) => p.price, money: 1 }, { k: "gwp", l: GWL + " Proj", v: (p) => rdProj(p, sc, FNEXT) }, { k: "own", l: "Own%", v: (p) => p.own, d: 1 }, { k: "capt", l: "Capt%", v: (p) => p.capt, d: 1 }]
     : [{ k: "own", l: "Own%", v: (p) => p.eOwn, d: 1 }];
   const base = [{ k: "g", l: "G", v: (p, rows) => rows.length }, { k: "min", l: "MPG", v: A("min"), d: 1 }, { k: "avg", l: "Avg", v: (p, rows) => avgOf(rows, sc), d: 1 },
-    { k: "hi", l: "High", v: (p, rows) => hi(p, rows, sc) }, { k: "lo", l: "Low", v: (p, rows) => lo(p, rows, sc) }, { k: "pts", l: "PPG", v: A("pts"), d: 1 }];
+    { k: "hi", l: "High", v: (p, rows) => hi(p, rows, sc) }, { k: "lo", l: "Low", v: (p, rows) => lo(p, rows, sc) }];
+  const P = (m, a) => (p, rows) => { const d = sumK(rows, a); return d ? (100 * sumK(rows, m)) / d : null; };
+  if (sc === "es") return head.concat(plat, base, [["pts", "PTS"], ["fgm", "FGM"], ["fga", "FGA"], ["fgp", "FG%"], ["tpm", "3PM"], ["tpa", "3PA"], ["tpp", "3PT%"], ["ast", "AST"], ["reb", "REB"], ["stl", "STL"], ["blk", "BLK"], ["tov", "TO"]]
+    .map(([k, l]) => (k === "fgp" ? { k, l, v: P("fgm", "fga"), d: 1, pct: 1 } : k === "tpp" ? { k, l, v: P("tpm", "tpa"), d: 1, pct: 1 } : { k, l, v: A(k), d: 1 })));
+  base.push({ k: "pts", l: "PPG", v: A("pts"), d: 1 });
   const mid = sc === "sc" ? [{ k: "miss", l: "Missed", v: (p, rows) => (rows.length ? rows.reduce((s, r) => s + missed(r), 0) / rows.length : null), d: 1 }]
     : [["fgm", "FGM"], ["fga", "FGA"], ["tpm", "3PM"], ["tpa", "3PA"], ["ftm", "FTM"], ["fta", "FTA"]].map(([k, l]) => ({ k, l, v: A(k), d: 1 }));
   const tail = [["reb", "REB"], ["ast", "AST"], ["blk", "BLK"], ["stl", "STL"], ["tov", "TO"]].map(([k, l]) => ({ k, l, v: A(k), d: 1 }));
@@ -3676,7 +3725,7 @@ function PlayerExplorer({ sc, onOpen, cmp, toggleCmp, period, setPeriod }) {
         <td className="fz fx-nm pcol" style=${{ left: 0, textAlign: "left", ...fzBg(p.tm) }}><span style=${{ display: "inline-flex", alignItems: "center", gap: 6 }}><${Badge} s=${p.tm} cls="xs" /><b className="fx-nmlink">${rNm(p.n)}</b></span></td>
         <td className="fz ccol" style=${{ ...fzBg(p.tm) }}><button className=${"cmp-btn" + (inCmp ? " on" : "")} onClick=${(e) => { e.stopPropagation(); toggleCmp(p.pid); }}>${inCmp ? "✓" : "+"}</button></td>
         <td>${posOf(p, sc)}</td><td>${p.dc || "–"}</td><td><${StatusTxt} p=${p} /></td>
-        ${cols.map((c) => { const v = c.v(p, rr); return html`<td key=${c.k} className=${sortk === c.k ? "colsel" : ""} style=${{ fontWeight: sortk === c.k ? 800 : 400 }}>${c.money ? money(v) : nn(v, c.d)}</td>`; })}
+        ${cols.map((c) => { const v = c.v(p, rr); return html`<td key=${c.k} className=${sortk === c.k ? "colsel" : ""} style=${{ fontWeight: sortk === c.k ? 800 : 400 }}>${c.money ? money(v) : c.pct ? (v == null ? "–" : v.toFixed(1) + "%") : nn(v, c.d)}</td>`; })}
       </tr>`; })}
     </tbody></table></div>
   </div>`;
@@ -3697,10 +3746,11 @@ function Comparison({ cmp, sc, clear, onOpen, period }) {
       .concat(common, [{ l: "Missed Shots", get: (p) => { const r = rr(p); return r.length ? r.reduce((s, x) => s + missed(x), 0) / r.length : null; }, d: 1, bad: 1 }],
         [["reb", "Rebounds"], ["ast", "Assists"], ["blk", "Blocks"], ["stl", "Steals"], ["tov", "Turnovers", 1]].map(([k, l, b]) => ({ l, get: A(k), d: 1, bad: b })), thr)
     : [{ l: GWL + " Games", get: (p) => roundGames(p.tm, FNEXT).length }, { l: "Ownership Trend", get: (p) => p.eChg, d: 2, sign: 1 }, { l: GWL + " Proj", get: (p) => rdProj(p, sc, FNEXT) }]
-      .concat(common, [{ l: "FG Made", get: A("fgm"), d: 1 }, { l: "FG %", get: pc("fgm", "fga"), d: 1, pct: 1 }, { l: "3PT Made", get: A("tpm"), d: 1 }, { l: "3PT %", get: pc("tpm", "tpa"), d: 1, pct: 1 }, { l: "FT Made", get: A("ftm"), d: 1 }, { l: "FT %", get: pc("ftm", "fta"), d: 1, pct: 1 }],
-        [["reb", "Rebounds"], ["ast", "Assists"], ["blk", "Blocks"], ["stl", "Steals"], ["tov", "Turnovers", 1]].map(([k, l, b]) => ({ l, get: A(k), d: 1, bad: b })), thr);
+      .concat(common.filter((r) => r.l !== "Points"), [{ l: "Points", get: A("pts"), d: 1 }, { l: "FG Made", get: A("fgm"), d: 1 }, { l: "FG Attempted", get: A("fga"), d: 1 }, { l: "FG %", get: pc("fgm", "fga"), d: 1, pct: 1 },
+        { l: "3PT Made", get: A("tpm"), d: 1 }, { l: "3PT Attempted", get: A("tpa"), d: 1 }, { l: "3PT %", get: pc("tpm", "tpa"), d: 1, pct: 1 }],
+        [["ast", "Assists"], ["reb", "Rebounds"], ["stl", "Steals"], ["blk", "Blocks"], ["tov", "Turnovers", 1]].map(([k, l, b]) => ({ l, get: A(k), d: 1, bad: b })), thr);
   const bestIdx = (r) => { let bi = null, bv = null; ps.forEach((p) => { const v = r.get(p); if (v == null) return; if (bv == null || (r.bad ? v < bv : v > bv)) { bv = v; bi = p.pid; } }); const vals = ps.map((p) => r.get(p)).filter((v) => v != null); if (vals.length > 1 && vals.every((v) => v === vals[0])) return null; return bi; };
-  const fmt = (r, p) => { const v = r.get(p); return v == null ? "–" : r.money ? money(v) : r.pct ? v.toFixed(0) + "%" : r.sign ? (v > 0 ? "+" : "") + nn(v, r.d) + "%" : nn(v, r.d); };
+  const fmt = (r, p) => { const v = r.get(p); return v == null ? "–" : r.money ? money(v) : r.pct ? v.toFixed(1) + "%" : r.sign ? (v > 0 ? "+" : "") + nn(v, r.d) + "%" : nn(v, r.d); };
   const jump = () => { const el = document.getElementById("fx-explorer-top"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
   const hdr = (p) => html`<th className="cmp-h" style=${{ background: color(p.tm), color: txtOn(color(p.tm)), position: "relative" }}><div style=${{ textAlign: "center", padding: "0 10px" }}>
     <b className="fx-nmlink cmp-nm" onClick=${() => onOpen(p)}>${rNm(p.n)}</b>
@@ -3809,7 +3859,7 @@ function FantasyModal({ p, scoring, onClose }) {
   const posRank = useMemo(() => {
     if (avg == null) return null;
     let better = 0, tot = 0;
-    FPL.forEach((o) => { if (dcBase(o) !== dpos) return; const rr = fPeriod(o.gl, period); if (rr.length < 5) return; tot++; if (avgOf(rr, sc) > avg) better++; });
+    FPL.forEach((o) => { if (dcBase(o) !== dpos) return; const rr = fPeriod(o.gl, period); if (rr.length < (period === "GW" ? 2 : 5)) return; tot++; if (avgOf(rr, sc) > avg) better++; });
     return [better + 1, tot];
   }, [p.pid, sc, period]);
   const gw = roundGames(p.tm, FNEXT);
@@ -3865,8 +3915,8 @@ function FantasyHub({ sc, setSc, fp, setFp }) {
       <div className="fhub-sc"><${Seg} cls="fitw" items=${[["sc", "SuperCoach"], ["es", "ESPN"]]} value=${sc} onChange=${setSc} /></div>
       <button className="collapse-btn" onClick=${() => setTblOpen((o) => !o)}>${tblOpen ? "▾ Hide tables" : "▸ Show tables"}</button>
     </div>
-    <div className="subtabs" style=${{ flexWrap: "wrap", margin: "0 0 10px", justifyContent: "center" }}>${FSUBS.map(([k, l]) => html`<button key=${k} className=${"subtab" + (sub === k ? " on" : "")} onClick=${() => setSub(k)}>${l}</button>`)}</div>
-    ${tblOpen ? html`<div>${sub === "trades" ? html`<${TradesTab} sc=${sc} onOpen=${open} />` : sub === "fixtures" ? html`<${FixturesTab} />` : sub === "injury" ? html`<${InjuryTab} sc=${sc} onOpen=${open} />` : sub === "picks" ? html`<${PicksTab} sc=${sc} onOpen=${open} />` : html`<${TeamsTab} sc=${sc} onOpen=${open} />`}</div>` : ""}
+    <div className="subtabs" style=${{ flexWrap: "wrap", margin: "0 0 10px", justifyContent: "center" }}>${FSUBS.map(([k, l]) => (k === "teams" && sc === "es" ? ["teams", "Stat Leaders"] : [k, l])).map(([k, l]) => html`<button key=${k} className=${"subtab" + (sub === k ? " on" : "")} onClick=${() => setSub(k)}>${l}</button>`)}</div>
+    ${tblOpen ? html`<div>${sub === "trades" ? html`<${TradesTab} sc=${sc} onOpen=${open} />` : sub === "fixtures" ? html`<${FixturesTab} />` : sub === "injury" ? html`<${InjuryTab} sc=${sc} onOpen=${open} />` : sub === "picks" ? html`<${PicksTab} sc=${sc} onOpen=${open} />` : sc === "es" ? html`<${LeadersTab} onOpen=${open} />` : html`<${TeamsTab} sc=${sc} onOpen=${open} />`}</div>` : ""}
     <div style=${{ height: 1, background: "var(--brd)", margin: "22px 0 14px" }}></div>
     <${Comparison} cmp=${cmp} sc=${sc} clear=${toggleCmp} onOpen=${open} period=${period} />
     <${PlayerExplorer} key=${sc} sc=${sc} onOpen=${open} cmp=${cmp} toggleCmp=${toggleCmp} period=${period} setPeriod=${setPeriod} />
